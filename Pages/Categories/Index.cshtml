@@ -1,0 +1,38 @@
+@page
+@model CategoriesIndexModel
+@{
+    ViewData["Title"] = "Categories";
+}
+
+<h2>Categories</h2>
+@if(TempData["ErrorMessage"] is string err){
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        @err
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+<p>
+    <a asp-page="Create" class="btn btn-primary btn-sm">+ Add Category</a>
+</p>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th class="text-end">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var cat in Model.Categories)
+    {
+        <tr>
+            <td>@cat.Name</td>
+            <td class="text-end">
+                <form method="post" asp-page-handler="Delete" onsubmit="return confirm('Delete this category?');" style="display:inline-block;">
+                    <input type="hidden" name="DeleteId" value="@cat.Id" />
+                    <button type="submit" class="btn btn-link text-danger p-0"><i class="bi bi-trash"></i></button>
+                </form>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>

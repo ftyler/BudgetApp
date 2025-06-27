@@ -1,0 +1,71 @@
+@page
+@model BudgetApp.Pages.Transactions.CreateModel
+@{
+    ViewData["Title"] = "Add Transaction";
+}
+
+<h2>Add Transaction</h2>
+
+<form method="post">
+    <div class="mb-3">
+        <label asp-for="Input.Date" class="form-label"></label>
+        <input asp-for="Input.Date" class="form-control" />
+        <span asp-validation-for="Input.Date" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Input.Payee" class="form-label"></label>
+        <input asp-for="Input.Payee" class="form-control" />
+        <span asp-validation-for="Input.Payee" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Input.Amount" class="form-label"></label>
+        <input asp-for="Input.Amount" class="form-control" />
+        <span asp-validation-for="Input.Amount" class="text-danger"></span>
+    </div>
+
+    
+
+    <div class="mb-3">
+        <label asp-for="Input.CategoryId" class="form-label"></label>
+        <select asp-for="Input.CategoryId" class="form-select cat-select" asp-items="Model.CategoryList"></select>
+        <span asp-validation-for="Input.CategoryId" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Input.Notes" class="form-label"></label>
+        <textarea asp-for="Input.Notes" class="form-control"></textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save</button>
+    <a asp-page="/Index" class="btn btn-secondary">Cancel</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+    document.querySelector('.cat-select').addEventListener('change', async (e)=>{
+        const sel = e.target;
+        if(sel.value === '-1'){
+            const name = prompt('Enter new category name:');
+            if(name){
+               const res = await fetch('/api/categories?name='+encodeURIComponent(name), {method:'POST'});
+               if(res.ok){
+                    const data = await res.json();
+                    const addOpt = sel.querySelector('option[value="-1"]');
+                    const opt = document.createElement('option');
+                    opt.value = data.id;
+                    opt.textContent = data.name;
+                    sel.insertBefore(opt, addOpt);
+                    sel.value = data.id;
+               }else{
+                    sel.value = '';
+               }
+            }else{
+                sel.value = '';
+            }
+        }
+    });
+    </script>
+}

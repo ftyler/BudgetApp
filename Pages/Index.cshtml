@@ -1,0 +1,294 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Budget Dashboard";
+}
+
+<h2>Budget Summary</h2>
+<div class="mb-3">
+    <form id="budgetForm" method="post" class="d-inline">
+        <span class="fw-bold">Monthly Budget:</span>
+        <span class="budget-line">
+            <span id="budgetDisplay">@Model.Budget.ToString("C")</span>
+            <input asp-for="InputBudget" id="budgetInput" type="number" class="form-control budget-input" />
+            <span class="edit-icon" id="editIcon" role="button">&#9998;</span>
+    </span>
+</form><br />
+    <span class="fw-bold">Spent:</span> @Model.Spent.ToString("C")<br />
+    <span class="fw-bold">Remaining:</span> @Model.Remaining.ToString("C")
+</div><br/>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h2>Transactions</h2>
+    <button id="btnAddTx" class="btn btn-outline-primary btn-sm"><i class="bi bi-plus-square"></i></button>
+</div>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Payee</th>
+            <th>Category</th>
+            <th class="text-end">Amount</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var t in Model.RecentTransactions!)
+        {
+            <tr>
+                <td>
+                    <span class="date-display date-click" role="button">@t.Date.ToString("MM/dd/yyyy")</span>
+                    <form method="post" asp-page-handler="UpdateDate" class="date-form" style="display:none;">
+                        <input type="hidden" name="TxId" value="@t.Id" />
+                        <input type="date" name="NewDateStr" value="@t.Date.ToString("yyyy-MM-dd")" class="form-control form-control-sm date-input" style="width:10rem; display:inline-block;" />
+                    </form>
+                </td>
+                <td>
+                    <span class="pay-display pay-click" role="button">@t.Payee</span>
+                    <form method="post" asp-page-handler="UpdatePayee" class="pay-form" style="display:none;">
+                        <input type="hidden" name="TxId" value="@t.Id" />
+                        <input type="text" name="NewPayee" class="form-control form-control-sm pay-input" style="width:10rem; display:inline-block;" />
+                    </form>
+                </td>
+                <td>
+                    <span class="cat-display" style="display:none;">@t.Category?.Name</span>
+                <form method="post" asp-page-handler="UpdateCategory" class="cat-form">
+                    <input type="hidden" name="TxId" value="@t.Id" />
+                    <select name="NewCategoryId" class="form-select form-select-sm cat-select">
+                        @foreach (var c in Model.AllCategories)
+                        {
+                            <option value="@c.Id" selected="@(c.Id == t.CategoryId)">@c.Name</option>
+                        }
+                        <option value="-1">+ Add new...</option>
+                    </select>
+                </form>
+            </td>
+                <td class="text-end">
+                    <span class="amt-display amt-click" role="button">@t.Amount.ToString("C")</span>
+                    <form method="post" asp-page-handler="UpdateAmount" class="amt-form" style="display:none;">
+                        <input type="hidden" name="TxId" value="@t.Id" />
+                        <input type="number" step="0.01" name="NewAmount" class="form-control form-control-sm amt-input" style="width:7rem; display:inline-block;" />
+                    </form>
+                    
+                </td>
+                <td>
+                    <form method="post" asp-page-handler="Delete" onsubmit="return confirm('Delete this transaction?');">
+                        <input type="hidden" name="DeleteId" value="@t.Id" />
+                        <button class="btn btn-sm text-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                    </form>
+                </td>
+            </tr>
+        }
+        <!-- new transaction template -->
+        <tr id="newTxRow" style="display:none">
+            <td><input type="date" class="form-control form-control-sm" name="NewTxDate" value="@DateTime.Today.ToString("yyyy-MM-dd")" /></td>
+            <td><input type="text" class="form-control form-control-sm" name="NewTxPayee" /></td>
+            <td>
+                <select name="NewTxCategoryId" class="form-select form-select-sm cat-select">
+                    <option value="">Select...</option>
+                    @foreach(var c in Model.AllCategories){
+                        <option value="@c.Id">@c.Name</option>
+                    }
+                    <option value="-1">+ Add new...</option>
+                </select>
+            </td>
+            <td class="text-end">
+                <input type="number" step="0.01" class="form-control form-control-sm" style="width:6rem;" name="NewTxAmount" />
+            </td>
+            <td>
+                <button id="saveTxBtn" class="btn btn-success btn-sm">Save</button>
+            </td>
+        </tr>
+        <form id="newTxForm" method="post" asp-page-handler="AddTx" class="d-none">
+            <input type="hidden" name="NewTxDate">
+            <input type="hidden" name="NewTxPayee">
+            <input type="hidden" name="NewTxCategoryId">
+            <input type="hidden" name="NewTxAmount">
+        </form>
+    </tbody>
+</table>
+
+<script>
+(function(){
+  const editIcon = document.getElementById('editIcon');
+  const display = document.getElementById('budgetDisplay');
+  const input = document.getElementById('budgetInput');
+  const form = document.getElementById('budgetForm');
+  if(editIcon){
+    editIcon.addEventListener('click', () => {
+      display.style.display='none';
+      input.style.display='inline-block'; editIcon.style.display='none';
+      input.value = display.textContent.replace(/[^0-9\.-]/g,'');
+      input.focus();
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter'){
+        if(form) form.submit();
+      } else if(e.key === 'Escape'){
+        input.style.display='none';
+        display.style.display='inline'; editIcon.style.display='inline';
+      }
+    });
+
+    input.addEventListener('blur', () => {
+      if(input.style.display !== 'none'){
+        if(form) form.submit();
+      }
+    });     
+   }
+})();
+
+// category inline edit
+(function(){
+  document.querySelectorAll('.cat-select').forEach(sel=>{
+    sel.addEventListener('change', async (e)=>{
+      const form = e.target.closest('form');
+      const selectedValue = e.target.value;
+      if(selectedValue === '-1'){
+        const name = prompt('Enter new category name:');
+        if(name){
+          const res = await fetch('/api/categories?name='+encodeURIComponent(name), { method:'POST' });
+          if(res.ok){
+            const data = await res.json();
+            // add option before add-new
+            const addOpt = sel.querySelector('option[value="-1"]');
+            const opt = document.createElement('option');
+            opt.value = data.id;
+            opt.textContent = data.name;
+            sel.insertBefore(opt, addOpt);
+            sel.value = data.id;
+          }
+        } else {
+          e.target.value = '';
+        }
+      }
+      if(form) form.submit();
+    });
+  });
+})();
+
+// inline date edit
+(function(){
+  document.querySelectorAll('.date-click').forEach(display=>{
+    display.addEventListener('click', ()=>{
+      const cell = display.closest('td');
+      const form = cell.querySelector('.date-form');
+      const input = form.querySelector('.date-input');
+      display.style.display='none';
+      form.style.display='inline-block';
+      input.focus();
+      const cancel = ()=>{
+        form.style.display='none';
+        display.style.display='inline';
+      };
+      input.addEventListener('keydown', e=>{
+        if(e.key==='Enter'){
+          if(form) form.submit();
+        } else if(e.key==='Escape'){
+          cancel();
+        }
+      }, { once:true});
+      input.addEventListener('blur', ()=>{
+        if(form.style.display!=='none') form.submit();
+      }, { once:true});
+    });
+  });
+})();
+
+// inline payee edit
+(function(){
+  document.querySelectorAll('.pay-click').forEach(display=>{
+    display.addEventListener('click', ()=>{
+      const cell = display.closest('td');
+      const form = cell.querySelector('.pay-form');
+      const input = form.querySelector('.pay-input');
+      display.style.display='none';
+      form.style.display='inline-block';
+      input.value = display.textContent.trim();
+      input.focus();
+      const cancel = ()=>{
+         form.style.display='none';
+         display.style.display='inline';
+      };
+      input.addEventListener('keydown', e=>{
+        if(e.key==='Enter'){
+          if(form) form.submit();
+        } else if(e.key==='Escape'){
+          cancel();
+        }
+      }, { once:true});
+      input.addEventListener('blur', ()=>{
+        if(form.style.display!=='none') form.submit();
+      }, { once:true});
+    });
+  });
+})();
+
+// add transaction row
+(function(){
+  const row   = document.getElementById('newTxRow');
+  const plus  = document.getElementById('btnAddTx');
+  const save  = document.getElementById('saveTxBtn');
+  const form  = document.getElementById('newTxForm');
+
+  plus.addEventListener('click', () => { row.style.display = ''; });
+
+save.addEventListener('click', () => {
+    form.elements['NewTxDate'].value       = row.querySelector('[name=NewTxDate]').value;
+    form.elements['NewTxPayee'].value      = row.querySelector('[name=NewTxPayee]').value.trim();
+    form.elements['NewTxCategoryId'].value = row.querySelector('[name=NewTxCategoryId]').value;
+    form.elements['NewTxAmount'].value     = row.querySelector('[name=NewTxAmount]').value;
+    form.submit();
+});
+})();
+
+// inline amount edit
+(function(){
+  document.querySelectorAll('.amt-click').forEach(display=>{
+    display.addEventListener('click', ()=>{
+      const cell = display.closest('td');
+      // display already defined above
+      const form = cell.querySelector('.amt-form');
+      const input = form.querySelector('.amt-input');
+      display.style.display='none';
+      form.style.display='inline-block';
+      
+      input.value = display.textContent.replace(/[^0-9\.-]/g,'');
+      input.focus();
+
+      const cancel = ()=>{
+        form.style.display='none';
+        display.style.display='inline';
+      };
+
+      input.addEventListener('keydown', e=>{
+        if(e.key==='Enter'){
+          if(form) form.submit();
+        } else if(e.key==='Escape'){
+          cancel();
+        }
+      }, { once: true});
+
+      input.addEventListener('blur', ()=>{
+        if(form.style.display!=='none') form.submit();
+      }, { once: true});
+    });
+  });
+})();
+</script>
+
+<style>
+    .edit-icon { visibility:hidden; cursor:pointer; font-size:0.9rem; }
+    .budget-line:hover .edit-icon { visibility:visible; }
+    .budget-input { display:none; width:100px; }
+    /* hide spin buttons */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    input[type=number] {
+        -moz-appearance: textfield;
+    }
+</style>
